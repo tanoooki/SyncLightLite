@@ -1,0 +1,13 @@
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const src = fs.readFileSync(path.join(root, 'tray/SyncLightLite.Tray/Program.cs'), 'utf8');
+assert(src.includes('Mutex'), 'tray app should use a mutex for single instance');
+assert(src.includes('SyncLightLite.SingleInstance'), 'tray mutex should have a stable app name');
+assert(src.includes('OpenSettingsWindow'), 'tray should have a settings window');
+assert(src.includes('Configurações'), 'tray menu should expose Configurações');
+assert(src.includes('--minimized'), 'tray app should support minimized startup');
+assert(src.includes('CaptureScalePercent'), 'settings should expose capture scale percent');
+assert(src.includes('HeaderOffsetPercent'), 'settings should expose header/top offset percent');
+assert(src.includes('config.json'), 'tray app should persist config.json');

@@ -1,0 +1,22 @@
+# dependencies / generated output
+node_modules/
+dist/
+tray/**/bin/
+tray/**/obj/
+
+# local vendored runtime dependencies used for packaging
+vendor/node_modules/
+
+# logs/cache
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# local environment
+.env
+*.local
+
+# generated local benchmarks may contain machine-specific process paths
+benchmark/*.json
+benchmark/*.txt

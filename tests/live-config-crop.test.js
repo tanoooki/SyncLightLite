@@ -1,0 +1,14 @@
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const live = fs.readFileSync(path.join(root, 'src/live.js'), 'utf8');
+const mapper = fs.readFileSync(path.join(root, 'src/mapper.js'), 'utf8');
+assert(live.includes('loadConfig'), 'live should load config.json');
+assert(live.includes('captureScalePercent'), 'live should read captureScalePercent');
+assert(live.includes('headerOffsetPercent'), 'live should read headerOffsetPercent');
+assert(live.includes('captureScale'), 'live should pass captureScale to mapper');
+assert(live.includes('headerOffset'), 'live should pass headerOffset to mapper');
+assert(mapper.includes('options.captureScale ?? 1'), 'mapper should default captureScale to full height');
+assert(mapper.includes('options.headerOffset ?? 0'), 'mapper should default headerOffset to zero');
+assert(mapper.includes('sampleY'), 'mapper should map edge sampling through scaled/offset capture Y');

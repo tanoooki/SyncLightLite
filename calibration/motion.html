@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>SyncLightLite Motion Calibration</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+    .scene { position: fixed; inset: 0; background: #000; }
+    .band {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 28vw;
+      filter: blur(16px) saturate(1.35);
+      opacity: .95;
+      animation: sweep 5.5s linear infinite;
+    }
+    .red { background: #ff1e00; animation-delay: 0s; }
+    .green { background: #00ff55; animation-delay: -1.8s; }
+    .blue { background: #0077ff; animation-delay: -3.6s; }
+    .label {
+      position: fixed;
+      left: 24px;
+      bottom: 20px;
+      color: white;
+      font: 600 22px/1.3 system-ui, Segoe UI, sans-serif;
+      text-shadow: 0 2px 10px #000;
+      opacity: .8;
+    }
+    @keyframes sweep {
+      from { transform: translateX(-35vw); }
+      to { transform: translateX(135vw); }
+    }
+  </style>
+</head>
+<body>
+  <div class="scene">
+    <div class="band red"></div>
+    <div class="band green"></div>
+    <div class="band blue"></div>
+  </div>
+  <div class="label">SyncLightLite motion test: vermelho → verde → azul varrendo a tela</div>
+</body>
+</html>

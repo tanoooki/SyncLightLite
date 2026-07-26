@@ -1,0 +1,42 @@
+{
+  "name": "synclightlite",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Lightweight open-source HID ambient light/screen-sync controller for Robobloq SyncLight-style USB light strips",
+  "main": "src/live.js",
+  "scripts": {
+    "test": "node tests/live-range.test.js && node tests/mapper-orientation.test.js && node tests/mapper-crop-effect.test.js && node tests/live-default-fps.test.js && node tests/live-continuous-off.test.js && node tests/startup-scripts.test.js && node tests/startup-node-path.test.js && node tests/tray-app.test.js && node tests/tray-single-instance-config.test.js && node tests/live-config-crop.test.js && node tests/enhanced-config-ui.test.js && node tests/icon-help-ui.test.js && node tests/portable-runtime.test.js && node tests/installer-package.test.js && node tests/reverse-led-order.test.js && node tests/i18n-ui.test.js && node tests/i18n-live-refresh.test.js && node tests/lighting-modes.test.js && node tests/settings-layout.test.js && node tests/save-feedback.test.js && node tests/developer-credit.test.js",
+    "info": "node src/live.js info",
+    "solid:red": "node src/live.js solid red",
+    "live:10s": "node src/live.js live --duration 10",
+    "package:release": "node scripts/package-release.js",
+    "release:local": "npm test && npm run package:release"
+  },
+  "license": "MIT",
+  "author": "Pichau and contributors",
+  "homepage": "https://github.com/Tanoooki/SyncLightLite#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tanoooki/SyncLightLite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Tanoooki/SyncLightLite/issues"
+  },
+  "keywords": [
+    "ambient-light",
+    "ambilight",
+    "hid",
+    "rgb",
+    "robobloq",
+    "synclight",
+    "screen-sync",
+    "windows",
+    "tray-app"
+  ],
+  "dependencies": {
+    "node-hid": "^3.4.0"
+  },
+  "optionalDependencies": {
+    "@warren-robobloq/quiklight": "1.25.6"
+  }
+}

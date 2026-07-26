@@ -1,0 +1,17 @@
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const trayRoot = path.join(root, 'tray/SyncLightLite.Tray');
+const csproj = path.join(trayRoot, 'SyncLightLite.Tray.csproj');
+const program = path.join(trayRoot, 'Program.cs');
+assert(fs.existsSync(csproj), 'tray csproj should exist');
+assert(fs.existsSync(program), 'tray Program.cs should exist');
+const src = fs.readFileSync(program, 'utf8');
+assert(src.includes('NotifyIcon'), 'tray app should use NotifyIcon');
+assert(src.includes('StartSyncLightLite'), 'tray app should start live engine');
+assert(src.includes('KillStaleLiveEngines'), 'tray app should stop stale node live engines before starting sync');
+assert(src.includes('CommandLine') && src.includes('src\\\\live.js live'), 'stale engine cleanup should target only SyncLightLite live node processes');
+assert(src.includes('StopSyncLightLite'), 'tray app should stop live engine');
+assert(src.includes('TurnOffLights'), 'tray app should turn lights off');
+assert(src.includes('SystemEvents.SessionEnding'), 'tray app should handle Windows shutdown/logoff');

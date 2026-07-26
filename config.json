@@ -1,0 +1,17 @@
+{
+  "language": "en",
+  "fps": 30,
+  "captureScalePercent": 90,
+  "headerOffsetPercent": 23,
+  "horizontalMarginPercent": 10,
+  "brightnessPercent": 130,
+  "saturationPercent": 100,
+  "gamma": 0.9,
+  "thresholdPercent": 0,
+  "blackFloorPercent": 25,
+  "smoothing": 0.15,
+  "reverseLedOrder": false,
+  "mode": "screen",
+  "effectColor": "#ffffff",
+  "effectSpeedPercent": 50
+}
