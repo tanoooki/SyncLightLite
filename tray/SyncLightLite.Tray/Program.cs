@@ -19,6 +19,7 @@ internal static class Program
     private static SettingsForm? _settings;
     private static Mutex? _mutex;
     private static EventWaitHandle? _showEvent;
+    private static bool _shuttingDown;
 
     [STAThread]
     private static void Main(string[] args)
@@ -151,7 +152,8 @@ internal static class Program
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = true
+            RedirectStandardError = true,
+            RedirectStandardInput = true
         };
         _live = Process.Start(info);
         if (_live == null) return;
@@ -164,12 +166,18 @@ internal static class Program
 
     private static void StopSyncLightLite(bool turnOff)
     {
+        var offSentByLiveEngine = false;
         try
         {
             if (_live is { HasExited: false })
             {
-                _live.Kill(entireProcessTree: true);
-                _live.WaitForExit(1500);
+                offSentByLiveEngine = RequestLiveEngineStop(_live, turnOff);
+                if (!_live.WaitForExit(turnOff ? 3500 : 1500))
+                {
+                    _live.Kill(entireProcessTree: true);
+                    _live.WaitForExit(1500);
+                    offSentByLiveEngine = false;
+                }
             }
             KillStaleLiveEngines(null);
         }
@@ -178,8 +186,26 @@ internal static class Program
         {
             _live?.Dispose();
             _live = null;
-            if (turnOff) TurnOffLights();
+            if (turnOff && !offSentByLiveEngine) TurnOffLights();
             if (_tray != null) _tray.Text = TMenu("trayOff");
+        }
+    }
+
+    private static bool RequestLiveEngineStop(Process process, bool turnOff)
+    {
+        try
+        {
+            if (process.HasExited) return false;
+            process.StandardInput.WriteLine(turnOff ? "off" : "stop");
+            process.StandardInput.Flush();
+            process.StandardInput.Close();
+            AppendLog(turnOff ? "[tray] requested live engine graceful off" : "[tray] requested live engine graceful stop");
+            return turnOff;
+        }
+        catch (Exception ex)
+        {
+            AppendLog("[tray] graceful live engine stop failed: " + ex.Message);
+            return false;
         }
     }
 
@@ -206,6 +232,8 @@ internal static class Program
 
     private static void ShutdownNow()
     {
+        if (_shuttingDown) return;
+        _shuttingDown = true;
         StopSyncLightLite(turnOff: true);
         _tray?.Dispose();
         _mutex?.Dispose();

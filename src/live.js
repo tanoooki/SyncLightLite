@@ -135,6 +135,7 @@ async function runLive(device, leds) {
       resolve();
     };
 
+    installStdinShutdownHandler(stop);
     installShutdownHandlers(() => stop(true));
     const timer = duration > 0 ? setTimeout(() => stop(false), duration) : null;
 
@@ -187,17 +188,19 @@ async function runEffect(device, leds, config, mode) {
   console.log('effect', JSON.stringify({ mode, leds, fps, speed, effectColor: config.effectColor ?? '#ffffff' }));
 
   return new Promise((resolve) => {
+    let timer = null;
     const stop = (turnLightsOff = false) => {
       if (stopped) return;
       stopped = true;
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
       if (turnLightsOff) turnOff(device, leds);
       try { device.close(); } catch (_) {}
       console.log(`effect stopped; mode=${mode}; packets sent=${sent}; off=${turnLightsOff}`);
       resolve();
     };
+    installStdinShutdownHandler(stop);
     installShutdownHandlers(() => stop(true));
-    const timer = setInterval(() => {
+    timer = setInterval(() => {
       tick++;
       const colors = effectColors(mode, leds, tick, speed, base);
       if (mode === 'solid') writePacket(device, solidPacket(base.r, base.g, base.b, leds));
@@ -254,6 +257,23 @@ function installShutdownHandlers(stop) {
   process.on('SIGINT', () => { stop(); setTimeout(() => process.exit(0), 50); });
   process.on('SIGTERM', () => { stop(); setTimeout(() => process.exit(0), 50); });
   process.on('SIGHUP', () => { stop(); setTimeout(() => process.exit(0), 50); });
+}
+
+function installStdinShutdownHandler(stop) {
+  if (!process.stdin || process.stdin.isTTY) return;
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', chunk => {
+    const command = String(chunk).trim().toLowerCase();
+    if (['off', 'shutdown', 'stop-off'].includes(command)) {
+      stop();
+      setTimeout(() => process.exit(0), 50);
+      return;
+    }
+    if (['stop', 'exit', 'quit'].includes(command)) {
+      stop(false);
+      setTimeout(() => process.exit(0), 50);
+    }
+  });
 }
 
 function turnOff(device, leds) {

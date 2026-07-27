@@ -13,5 +13,7 @@ assert(src.includes('StartSyncLightLite'), 'tray app should start live engine');
 assert(src.includes('KillStaleLiveEngines'), 'tray app should stop stale node live engines before starting sync');
 assert(src.includes('CommandLine') && src.includes('src\\\\live.js live'), 'stale engine cleanup should target only SyncLightLite live node processes');
 assert(src.includes('StopSyncLightLite'), 'tray app should stop live engine');
+assert(src.includes('RedirectStandardInput = true'), 'tray app should keep stdin open for graceful live-engine shutdown');
+assert(src.includes('RequestLiveEngineStop'), 'tray app should ask node to turn LEDs off before killing it');
 assert(src.includes('TurnOffLights'), 'tray app should turn lights off');
 assert(src.includes('SystemEvents.SessionEnding'), 'tray app should handle Windows shutdown/logoff');

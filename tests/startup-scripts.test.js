@@ -21,5 +21,6 @@ assert(install.replaceAll('\\', '/').includes('dist/tray/SyncLightLite.exe'), 'S
 assert(install.replaceAll('\\', '/').includes('%STARTUP%/SyncLightLite.lnk') || install.includes("Join-Path $Startup 'SyncLightLite.lnk'"), 'Startup entry should be a .lnk so Task Manager shows the app icon/name');
 assert(!install.includes('copy /Y "%APPROOT%\\scripts\\SyncLightLite-tray.cmd"'), 'install should not place SyncLightLite.cmd in Startup');
 assert(uninstall.includes('SyncLightLite.lnk'), 'uninstall should remove Startup .lnk entries');
-assert(install.includes('SyncLightLite-Off-On-Shutdown'), 'install should register shutdown/off task');
+assert(install.includes('/Delete /TN "SyncLightLite-Off-On-Shutdown"'), 'install should remove the old shutdown/off task that launched node during Windows shutdown');
 assert(!install.includes('/SC ONLOGON'), 'install should not use elevated ONLOGON schtasks');
+assert(!install.includes('/SC ONEVENT'), 'install should not launch node from a shutdown event task');

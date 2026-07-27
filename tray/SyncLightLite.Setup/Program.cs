@@ -75,7 +75,7 @@ internal static class Program
         RewriteInstalledHelperScripts();
         RemoveOldStartupCmdLaunchers();
         CreateShortcuts();
-        CreateShutdownTask();
+        DeleteShutdownTask();
         RegisterInstalledApp();
         if (!quiet) StartInstalledApp();
     }
@@ -176,11 +176,6 @@ internal static class Program
                       $"$s.IconLocation='{escapedIcon}';" +
                       "$s.Save()";
         Run("powershell.exe", $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"{command.Replace("\"", "\\\"")}\"");
-    }
-
-    private static void CreateShutdownTask()
-    {
-        Run("schtasks.exe", $"/Create /TN \"{ShutdownTaskName}\" /SC ONEVENT /EC System /MO \"*[System[(EventID=1074 or EventID=6006 or EventID=109)]]\" /TR \"\\\"{OffCmd}\\\"\" /F");
     }
 
     private static void DeleteShutdownTask()

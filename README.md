@@ -114,7 +114,7 @@ It also creates:
 - Start Menu shortcut: SyncLightLite
 - Start Menu folder: SyncLightLite
 - Startup shortcut for autostart, pointing directly to `SyncLightLite.exe` so Task Manager shows the app name/icon instead of a `.cmd` launcher
-- Shutdown event task to turn off the LEDs on system shutdown
+- Shutdown/logoff handling inside the tray app to turn off the LEDs before Windows closes the Node live engine
 - Windows “Installed Apps” entry with icon, version and uninstall command
 - First-run language selection based on Windows UI language when possible. Supported UI languages: English, Brazilian Portuguese, Spanish and Chinese. Unsupported languages fall back to English.
 
