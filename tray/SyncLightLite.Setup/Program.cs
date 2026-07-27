@@ -9,7 +9,7 @@ namespace SyncLightLite.Setup;
 internal static class Program
 {
     private const string AppName = "SyncLightLite";
-    private const string Version = "1.0.1";
+    private const string Version = "1.0.2";
     private const string Publisher = "SyncLightLite contributors";
     private const string ShutdownTaskName = "SyncLightLite-Off-On-Shutdown";
 

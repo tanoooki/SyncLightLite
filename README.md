@@ -20,7 +20,7 @@
 > [!IMPORTANT]
 > Close the original SyncLight application before using SyncLightLite. Both apps try to open the same USB HID interface, and running them together is the most likely cause of “it does not work”.
 
-SyncLightLite replaces the heavier vendor desktop app with a small Node.js live engine plus a native Windows tray/settings app. The current 1.0.1 release was built and verified against a Robobloq/SyncLight HID light strip with 71 LEDs.
+SyncLightLite replaces the heavier vendor desktop app with a small Node.js live engine plus a native Windows tray/settings app. The current 1.0.2 release was built and verified against a Robobloq/SyncLight HID light strip with 71 LEDs.
 
 ## Download
 
@@ -28,9 +28,9 @@ SyncLightLite replaces the heavier vendor desktop app with a small Node.js live 
 
 https://github.com/Tanoooki/SyncLightLite/releases/latest
 
-For 1.0.1, download:
+For 1.0.2, download:
 
-`SyncLightLite-1.0.1-windows-x64.zip`
+`SyncLightLite-1.0.2-windows-x64.zip`
 
 Then extract it and run `SyncLightLiteSetup.exe`.
 
@@ -100,7 +100,7 @@ If you test another model, please open an issue with:
 
 ## Install from release
 
-1. Download `SyncLightLite-1.0.1-windows-x64.zip` from the GitHub release.
+1. Download `SyncLightLite-1.0.2-windows-x64.zip` from the GitHub release.
 2. Extract the zip.
 3. Run `SyncLightLiteSetup.exe`.
 4. Open SyncLightLite from the Start Menu, or let it start automatically after login.

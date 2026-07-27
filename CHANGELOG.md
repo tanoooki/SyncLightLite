@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 - 2026-07-27
+
+- Fixes the tray-to-Node graceful off command so shutdown/off requests pass the explicit lights-off flag instead of stopping with `off=false`.
+- Changes the tray "Turn off now" action to stop the active live engine with `turnOff: true`, avoiding HID contention from a second off process while live sync owns the device.
+- Improves shutdown/logoff reliability for LEDs staying on and late `node.exe` teardown errors.
+
 ## 1.0.1 - 2026-07-26
 
 - Fixes Windows shutdown/logoff behavior: the tray app now asks the running Node live engine to turn LEDs off gracefully before terminating, avoiding late shutdown `node.exe` errors and leaving the strip on.
