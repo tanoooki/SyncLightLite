@@ -2,10 +2,11 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const projectRoot = path.resolve(__dirname, '..');
+const pkg = require(path.join(projectRoot, 'package.json'));
 const dist = path.join(projectRoot, 'dist');
 const installers = fs.readdirSync(dist).filter(n => n.startsWith('installer-')).sort();
 assert(installers.length, 'at least one versioned installer folder should exist');
-const packageRoot = path.join(dist, installers.includes('installer-1.0.0') ? 'installer-1.0.0' : installers.at(-1));
+const packageRoot = path.join(dist, installers.includes(`installer-${pkg.version}`) ? `installer-${pkg.version}` : installers.at(-1));
 
 assert(fs.existsSync(path.join(packageRoot, 'SyncLightLiteSetup.exe')), 'release package should expose a friendly .exe installer at the root');
 assert(!fs.existsSync(path.join(packageRoot, 'Install-SyncLightLite.cmd')), 'release package should not ask users to run a .cmd installer');

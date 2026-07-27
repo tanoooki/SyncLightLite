@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.1 - 2026-07-26
 
 - Fixes Windows shutdown/logoff behavior: the tray app now asks the running Node live engine to turn LEDs off gracefully before terminating, avoiding late shutdown `node.exe` errors and leaving the strip on.
 - Removes the old shutdown event task on install/startup-script setup because it could launch `node.exe` too late during Windows shutdown.
