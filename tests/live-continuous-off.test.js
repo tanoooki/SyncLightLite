@@ -12,4 +12,5 @@ assert(src.includes('solidPacket(0, 0, 0, leds)'), 'shutdown/off should send lig
 assert(src.includes("process.on('SIGINT'"), 'should handle Ctrl+C');
 assert(src.includes("process.on('SIGTERM'"), 'should handle termination');
 assert(src.includes("['off', 'shutdown', 'stop-off'].includes(command)"), 'stdin off command should stop and turn LEDs off');
+assert(src.includes('stop(true);'), 'stdin off command must pass turnLightsOff=true to the live stop handler');
 assert(src.includes("['stop', 'exit', 'quit'].includes(command)"), 'stdin stop command should stop without sending an extra off packet');

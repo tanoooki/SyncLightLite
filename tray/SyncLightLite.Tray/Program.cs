@@ -77,7 +77,7 @@ internal static class Program
         menu.Items.Add(TMenu("settings"), null, (_, _) => OpenSettingsWindow());
         menu.Items.Add(TMenu("startSync"), null, (_, _) => StartSyncLightLite());
         menu.Items.Add(TMenu("stopOff"), null, (_, _) => StopSyncLightLite(turnOff: true));
-        menu.Items.Add(TMenu("offNow"), null, (_, _) => TurnOffLights());
+        menu.Items.Add(TMenu("offNow"), null, (_, _) => StopSyncLightLite(turnOff: true));
         menu.Items.Add(TMenu("openLog"), null, (_, _) => Process.Start(new ProcessStartInfo(LogPath) { UseShellExecute = true }));
         menu.Items.Add(TMenu("exit"), null, (_, _) => { StopSyncLightLite(turnOff: true); Application.Exit(); });
         return menu;

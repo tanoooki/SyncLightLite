@@ -265,7 +265,7 @@ function installStdinShutdownHandler(stop) {
   process.stdin.on('data', chunk => {
     const command = String(chunk).trim().toLowerCase();
     if (['off', 'shutdown', 'stop-off'].includes(command)) {
-      stop();
+      stop(true);
       setTimeout(() => process.exit(0), 50);
       return;
     }
