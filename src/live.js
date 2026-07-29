@@ -124,15 +124,21 @@ async function runLive(device, leds) {
 
   console.log('live', JSON.stringify({ mode, monitor, leds, durationMs: duration, fps, captureScale, headerOffset, horizontalMargin, brightness, saturation, gamma, threshold, blackFloor, smoothing, reverseLedOrder }));
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const stop = (turnLightsOff = false) => {
       if (stopped) return;
       stopped = true;
       try { q.stopCaptureMultiScreens(); } catch (_) {}
-      if (turnLightsOff) turnOff(device, leds);
+      if (turnLightsOff) safeTurnOff(device, leds, 'live stop');
       try { device.close(); } catch (_) {}
       console.log(`live stopped; packets sent=${sent}; off=${turnLightsOff}`);
       resolve();
+    };
+
+    const stopAfterDeviceError = (err) => {
+      if (timer) clearTimeout(timer);
+      console.log(`[live] capture/write stopped cleanly after error: ${err?.message || err}`);
+      stop(false);
     };
 
     installStdinShutdownHandler(stop);
@@ -164,15 +170,11 @@ async function runLive(device, leds) {
             stop(false);
           }
         } catch (err) {
-          if (timer) clearTimeout(timer);
-          try { q.stopCaptureMultiScreens(); } catch (_) {}
-          try { device.close(); } catch (_) {}
-          reject(err);
+          stopAfterDeviceError(err);
         }
       }, monitors, 120, 10);
     } catch (err) {
-      if (timer) clearTimeout(timer);
-      reject(err);
+      stopAfterDeviceError(err);
     }
   });
 }
@@ -193,7 +195,7 @@ async function runEffect(device, leds, config, mode) {
       if (stopped) return;
       stopped = true;
       if (timer) clearInterval(timer);
-      if (turnLightsOff) turnOff(device, leds);
+      if (turnLightsOff) safeTurnOff(device, leds, 'effect stop');
       try { device.close(); } catch (_) {}
       console.log(`effect stopped; mode=${mode}; packets sent=${sent}; off=${turnLightsOff}`);
       resolve();
@@ -201,12 +203,17 @@ async function runEffect(device, leds, config, mode) {
     installStdinShutdownHandler(stop);
     installShutdownHandlers(() => stop(true));
     timer = setInterval(() => {
-      tick++;
-      const colors = effectColors(mode, leds, tick, speed, base);
-      if (mode === 'solid') writePacket(device, solidPacket(base.r, base.g, base.b, leds));
-      else writePacket(device, colorsPacket(colors));
-      sent++;
-      if (sent === 1 || sent % Math.max(1, Math.round(5000 / intervalMs)) === 0) console.log(`effect heartbeat; mode=${mode}; packets sent=${sent}`);
+      try {
+        tick++;
+        const colors = effectColors(mode, leds, tick, speed, base);
+        if (mode === 'solid') writePacket(device, solidPacket(base.r, base.g, base.b, leds));
+        else writePacket(device, colorsPacket(colors));
+        sent++;
+        if (sent === 1 || sent % Math.max(1, Math.round(5000 / intervalMs)) === 0) console.log(`effect heartbeat; mode=${mode}; packets sent=${sent}`);
+      } catch (err) {
+        console.log(`[live] effect/write stopped cleanly after error: ${err?.message || err}`);
+        stop(false);
+      }
     }, intervalMs);
   });
 }
@@ -274,6 +281,14 @@ function installStdinShutdownHandler(stop) {
       setTimeout(() => process.exit(0), 50);
     }
   });
+}
+
+function safeTurnOff(device, leds, context) {
+  try {
+    turnOff(device, leds);
+  } catch (err) {
+    console.log(`[live] lights-off skipped during ${context}: ${err?.message || err}`);
+  }
 }
 
 function turnOff(device, leds) {

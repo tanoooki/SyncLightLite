@@ -18,3 +18,5 @@ assert(src.includes('RequestLiveEngineStop'), 'tray app should ask node to turn 
 assert(src.includes('TurnOffLights'), 'tray app should turn lights off');
 assert(src.includes('TMenu("offNow"), null, (_, _) => StopSyncLightLite(turnOff: true)'), 'turn-off-now menu should stop the live engine before sending off to avoid HID contention');
 assert(src.includes('SystemEvents.SessionEnding'), 'tray app should handle Windows shutdown/logoff');
+assert(src.includes('allowFallbackOff: false'), 'shutdown/logoff path must not launch a fresh node off process while Windows is ending the session');
+assert(src.includes('Application.ExitThread'), 'shutdown/logoff path should leave the WinForms message loop after cleanup');

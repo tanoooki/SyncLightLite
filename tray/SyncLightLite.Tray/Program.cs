@@ -164,7 +164,7 @@ internal static class Program
         if (_tray != null) _tray.Text = TMenu("trayOn");
     }
 
-    private static void StopSyncLightLite(bool turnOff)
+    private static void StopSyncLightLite(bool turnOff, bool allowFallbackOff = true, int? waitMs = null)
     {
         var offSentByLiveEngine = false;
         try
@@ -172,21 +172,24 @@ internal static class Program
             if (_live is { HasExited: false })
             {
                 offSentByLiveEngine = RequestLiveEngineStop(_live, turnOff);
-                if (!_live.WaitForExit(turnOff ? 3500 : 1500))
+                var gracefulWaitMs = waitMs ?? (turnOff ? 3500 : 1500);
+                if (!_live.WaitForExit(gracefulWaitMs))
                 {
+                    AppendLog($"[tray] live engine did not exit after {gracefulWaitMs}ms; killing process tree");
                     _live.Kill(entireProcessTree: true);
-                    _live.WaitForExit(1500);
+                    _live.WaitForExit(Math.Min(1000, gracefulWaitMs));
                     offSentByLiveEngine = false;
                 }
             }
             KillStaleLiveEngines(null);
         }
-        catch { }
+        catch (Exception ex) { AppendLog("[tray] stop failed: " + ex.Message); }
         finally
         {
             _live?.Dispose();
             _live = null;
-            if (turnOff && !offSentByLiveEngine) TurnOffLights();
+            if (turnOff && !offSentByLiveEngine && allowFallbackOff) TurnOffLights();
+            else if (turnOff && !offSentByLiveEngine) AppendLog("[tray] skipped fallback off process during Windows shutdown/logoff");
             if (_tray != null) _tray.Text = TMenu("trayOff");
         }
     }
@@ -234,10 +237,12 @@ internal static class Program
     {
         if (_shuttingDown) return;
         _shuttingDown = true;
-        StopSyncLightLite(turnOff: true);
+        AppendLog("[tray] Windows shutdown/logoff detected; stopping live engine without launching new node processes");
+        StopSyncLightLite(turnOff: true, allowFallbackOff: false, waitMs: 1800);
         _tray?.Dispose();
         _mutex?.Dispose();
         _showEvent?.Dispose();
+        try { Application.ExitThread(); } catch { }
     }
 
     private static void RunNode(string args, int waitMs)

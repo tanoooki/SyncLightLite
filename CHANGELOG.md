@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3 - 2026-07-28
+
+- Fixes shutdown/logoff crashes when Windows removes the Robobloq HID device before SyncLightLite finishes stopping.
+- Stops the tray from launching a fresh `node.exe` off process during Windows session ending; it now asks the already-running live engine to stop and logs that fallback behavior was intentionally skipped.
+- Keeps shutdown logs transparent: HID write/disconnect errors are logged as clean stop conditions instead of surfacing late Node stack traces.
+
 ## 1.0.2 - 2026-07-27
 
 - Fixes the tray-to-Node graceful off command so shutdown/off requests pass the explicit lights-off flag instead of stopping with `off=false`.
