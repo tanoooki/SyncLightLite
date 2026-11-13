@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Tanoooki/SyncLightLite/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Tanoooki/SyncLightLite?style=for-the-badge"></a>
+  <a href="https://github.com/Tanoooki/SyncLightLite/releases/latest"><img alt="Latest release: v1.1.0" src="https://img.shields.io/github/v/release/Tanoooki/SyncLightLite?style=for-the-badge&amp;cacheSeconds=300&amp;v=1.1.0"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge"></a>
   <img alt="Windows" src="https://img.shields.io/badge/windows-10%2F11-0078D4?style=for-the-badge&logo=windows">
   <img alt="Hardware verified" src="https://img.shields.io/badge/hardware-1A86%3AFE07%20verified-22c55e?style=for-the-badge">
