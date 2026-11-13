@@ -344,12 +344,12 @@ internal sealed class AppConfig
     public bool ReverseLedOrder { get; set; } = false;
 }
 
-internal sealed class SettingsForm : Form
+internal sealed partial class SettingsForm : Form
 {
-    private static readonly Color Bg = Color.FromArgb(30, 30, 30);
-    private static readonly Color Panel = Color.FromArgb(37, 37, 38);
-    private static readonly Color Fg = Color.FromArgb(220, 220, 220);
-    private static readonly Color Accent = Color.FromArgb(0, 122, 204);
+    private static readonly Color Bg = Color.FromArgb(247, 239, 219);
+    private static readonly Color Panel = Color.FromArgb(255, 250, 238);
+    private static readonly Color Fg = Color.FromArgb(62, 47, 38);
+    private static readonly Color Accent = Color.FromArgb(38, 112, 105);
 
     private readonly ComboBox _language = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly ComboBox _profile = new() { DropDownStyle = ComboBoxStyle.DropDownList };
@@ -369,10 +369,10 @@ internal sealed class SettingsForm : Form
     private readonly CheckBox _reverseLedOrder = new() { Text = "Inverter ordem dos LEDs", AutoSize = true };
     private readonly Action<AppConfig> _save;
     private readonly Action<string> _languagePreview;
-    private readonly Label _titleLabel = new() { Text = "SyncLightLite", Font = new Font("Segoe UI", 22, FontStyle.Bold), ForeColor = Color.White, AutoSize = true, Location = new Point(0, 0) };
-    private readonly Label _subtitleLabel = new() { Font = new Font("Segoe UI", 9), ForeColor = Color.FromArgb(150, 150, 150), AutoSize = true, Location = new Point(2, 44) };
+    private readonly Label _titleLabel = new() { Text = "SyncLightLite", Font = new Font("Segoe UI", 22, FontStyle.Bold), ForeColor = Fg, AutoSize = true, Location = new Point(78, 0) };
+    private readonly Label _subtitleLabel = new() { Font = new Font("Segoe UI", 9), ForeColor = Color.FromArgb(102, 80, 60), AutoSize = true, Location = new Point(80, 44) };
     private readonly Button _saveButton = new() { Dock = DockStyle.Right, Width = 230, BackColor = Accent, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
-    private readonly LinkLabel _developerCredit = new() { AutoSize = true, LinkColor = Color.FromArgb(86, 156, 214), ActiveLinkColor = Color.White, VisitedLinkColor = Color.FromArgb(86, 156, 214), TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Left, Padding = new Padding(0, 12, 0, 0) };
+    private readonly LinkLabel _developerCredit = new() { AutoSize = true, LinkColor = Accent, ActiveLinkColor = Fg, VisitedLinkColor = Accent, TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Left, Padding = new Padding(0, 12, 0, 0) };
     private readonly System.Windows.Forms.Timer _savePulseTimer = new() { Interval = 120 };
     private int _savePulseStep;
     private TabControl? _settingsTabs;
@@ -384,9 +384,11 @@ internal sealed class SettingsForm : Form
         _save = save;
         _languagePreview = languagePreview;
         Text = "SyncLightLite";
-        Width = 620;
-        Height = 720;
-        MinimumSize = new Size(560, 620);
+        Width = 760;
+        Height = 800;
+        MinimumSize = new Size(700, 480);
+        Font = new Font("Segoe UI", 10);
+        AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = Bg;
         ForeColor = Fg;
@@ -420,6 +422,7 @@ internal sealed class SettingsForm : Form
         _reverseLedOrder.Checked = cfg.ReverseLedOrder;
 
         var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(18), RowCount = 3, ColumnCount = 1, BackColor = Bg };
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
@@ -442,11 +445,35 @@ internal sealed class SettingsForm : Form
         footer.Controls.Add(_saveButton);
         root.Controls.Add(footer, 0, 2);
         Controls.Add(root);
+        InitializeCapturePreview();
+    }
+
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        FitToWorkingArea(Screen.FromControl(this).WorkingArea);
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        // WinForms applies the suggested DPI bounds after this event returns.
+        BeginInvoke((Action)(() => FitToWorkingArea(Screen.FromControl(this).WorkingArea)));
+    }
+
+    private void FitToWorkingArea(Rectangle area)
+    {
+        MinimumSize = new Size(Math.Min(MinimumSize.Width, area.Width), Math.Min(MinimumSize.Height, area.Height));
+        var width = Math.Min(Width, area.Width);
+        var height = Math.Min(Height, area.Height);
+        Bounds = new Rectangle(Math.Clamp(Left, area.Left, area.Right - width),
+            Math.Clamp(Top, area.Top, area.Bottom - height), width, height);
     }
 
     private Control Header()
     {
         var panel = new Panel { Dock = DockStyle.Fill, BackColor = Bg };
+        panel.Controls.Add(new PixelMonitor { Location = new Point(0, 5), Size = new Size(68, 58) });
         panel.Controls.Add(_titleLabel);
         _subtitleLabel.Text = T("subtitle");
         panel.Controls.Add(_subtitleLabel);
@@ -463,7 +490,13 @@ internal sealed class SettingsForm : Form
     private void RebuildSettingsRows()
     {
         if (_settingsTabs == null) return;
+        StopCaptureOverlay();
+        // Reparent reusable inputs before disposing obsolete localized containers.
+        foreach (var input in _rowHelp.Keys) input.Parent = null;
+        foreach (var control in new Control[] { _capturePreview, _captureNote, _captureLegend, _overlayToggle }) control.Parent = null;
+        var oldPages = _settingsTabs.TabPages.Cast<TabPage>().ToArray();
         _settingsTabs.TabPages.Clear();
+        foreach (var oldPage in oldPages) oldPage.Dispose();
         _rowLabels.Clear();
         _rowHelp.Clear();
 
@@ -502,11 +535,18 @@ internal sealed class SettingsForm : Form
 
     private TabPage BuildTabPage(string title, (string Label, Control Control, string Help)[] rows)
     {
-        var page = new TabPage(title) { BackColor = Panel, ForeColor = Fg, Padding = new Padding(12) };
+        var page = new TabPage(title) { BackColor = Panel, ForeColor = Fg, Padding = new Padding(12), AutoScroll = true };
         var grid = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, BackColor = Panel, Padding = new Padding(12), ColumnCount = 2, RowCount = rows.Length };
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
         for (var i = 0; i < rows.Length; i++) AddRow(grid, i, rows[i].Label, rows[i].Control, rows[i].Help);
+        if (rows.Any(row => row.Control == _scale))
+        {
+            var capture = BuildCapturePanel();
+            capture.Dock = DockStyle.Top;
+            capture.AutoSize = true;
+            page.Controls.Add(capture);
+        }
         page.Controls.Add(grid);
         return page;
     }
@@ -523,7 +563,7 @@ internal sealed class SettingsForm : Form
         labelPanel.Controls.Add(icon);
         grid.Controls.Add(labelPanel, 0, row);
         control.Dock = DockStyle.Fill;
-        control.BackColor = Color.FromArgb(45, 45, 48);
+        control.BackColor = Color.FromArgb(255, 253, 247);
         control.ForeColor = Fg;
         new ToolTip { AutomaticDelay = 120, AutoPopDelay = 12000 }.SetToolTip(control, help);
         grid.Controls.Add(control, 1, row);
@@ -671,10 +711,10 @@ internal sealed class SettingsForm : Form
 
     private static readonly Dictionary<string, Dictionary<string, string>> Translations = new()
     {
-        ["en"] = new() { ["subtitle"] = "Fine ambient-light control — lightweight, dark and direct.", ["developerCredit"] = "Developed by Tanoooki", ["language"] = "Language", ["languageHelp"] = "Choose the UI language. Default is English when Windows language is not supported.", ["profile"] = "Profile", ["profileHelp"] = "Quick presets: Economy lowers activity; Fluid/Maximum increase response.", ["invertStrip"] = "Invert strip", ["invertHelp"] = "Invert physical LED order if colors look mirrored or your strip starts on the opposite side.", ["reverseLedOrder"] = "Invert LED order", ["scale"] = "Vertical capture scale (%)", ["offset"] = "Ignore top/header (%)", ["hMargin"] = "Horizontal margin (%)", ["brightness"] = "Brightness (%)", ["saturation"] = "Saturation (%)", ["gamma"] = "Gamma (100 = neutral)", ["threshold"] = "Change threshold (%)", ["blackFloor"] = "Black floor (%)", ["smoothing"] = "Smoothing (%)", ["saveRestart"] = "Save and restart sync", ["saved"] = "Settings saved and sync restarted.", ["savedShort"] = "Saved", ["custom"] = "Custom", ["economy"] = "Economy", ["standard"] = "Standard", ["fluid"] = "Fluid", ["maximum"] = "Maximum", ["mode"] = "Lighting mode", ["modeHelp"] = "Choose screen sync or built-in effects similar to vendor presets.", ["modeScreen"] = "Screen sync", ["modeSolid"] = "Fixed color", ["modeBreathing"] = "Breathing", ["modeRainbow"] = "Rainbow", ["modeColorCycle"] = "Color cycle", ["modeWave"] = "Wave", ["effectColor"] = "Effect color", ["effectColorHelp"] = "Base color used by fixed, breathing and wave effects.", ["effectSpeed"] = "Effect speed (%)", ["effectSpeedHelp"] = "Animation speed for breathing/rainbow/wave modes.", ["colorWhite"] = "White", ["colorRed"] = "Red", ["colorGreen"] = "Green", ["colorBlue"] = "Blue", ["colorPurple"] = "Purple", ["colorCyan"] = "Cyan", ["colorWarm"] = "Warm white", ["tabGeneral"] = "General", ["tabEffects"] = "Effects", ["tabCapture"] = "Capture", ["tabColor"] = "Colors", ["fpsHelp"] = "Target refresh rate. 15–120 FPS.", ["scaleHelp"] = "Screen height used for sampling edges. 35–100%.", ["offsetHelp"] = "Moves capture area down. Useful to ignore browser tabs/header.", ["hMarginHelp"] = "Moves sampling inward from left/right edges. 0–25%.", ["brightnessHelp"] = "Final LED intensity. 100 is neutral.", ["saturationHelp"] = "Color strength. 100 is neutral.", ["gammaHelp"] = "Brightness curve. 100 is neutral.", ["thresholdHelp"] = "Minimum change before sending a packet.", ["blackFloorHelp"] = "Brightness below this becomes black.", ["smoothingHelp"] = "Higher means less flicker and more delay." },
-        ["pt-BR"] = new() { ["subtitle"] = "Controle fino da luz ambiente — leve, escuro e direto.", ["developerCredit"] = "Desenvolvido por Tanoooki", ["language"] = "Idioma", ["languageHelp"] = "Escolha o idioma da interface. Se o Windows não for suportado, o padrão é inglês.", ["profile"] = "Perfil", ["profileHelp"] = "Presets rápidos: Econômico reduz atividade; Fluido/Máximo aumentam resposta.", ["invertStrip"] = "Inverter fita", ["invertHelp"] = "Inverte a ordem física dos LEDs se as cores aparecem espelhadas ou se a fita começa no lado oposto.", ["reverseLedOrder"] = "Inverter ordem dos LEDs", ["scale"] = "Escala vertical da captura (%)", ["offset"] = "Ignorar cabeçalho/topo (%)", ["hMargin"] = "Margem horizontal (%)", ["brightness"] = "Brilho (%)", ["saturation"] = "Saturação (%)", ["gamma"] = "Gamma (100 = neutro)", ["threshold"] = "Threshold de mudança (%)", ["blackFloor"] = "Piso preto (%)", ["smoothing"] = "Suavização (%)", ["saveRestart"] = "Salvar e reiniciar sync", ["saved"] = "Configurações salvas e sincronização reiniciada.", ["savedShort"] = "Salvo", ["custom"] = "Personalizado", ["economy"] = "Econômico", ["standard"] = "Padrão", ["fluid"] = "Fluido", ["maximum"] = "Máximo", ["mode"] = "Modo de iluminação", ["modeHelp"] = "Escolha sincronização de tela ou efeitos embutidos parecidos com os presets do original.", ["modeScreen"] = "Sincronizar tela", ["modeSolid"] = "Cor fixa", ["modeBreathing"] = "Respirar", ["modeRainbow"] = "Arco-íris", ["modeColorCycle"] = "Ciclo de cores", ["modeWave"] = "Onda", ["effectColor"] = "Cor do efeito", ["effectColorHelp"] = "Cor base usada por cor fixa, respirar e onda.", ["effectSpeed"] = "Velocidade do efeito (%)", ["effectSpeedHelp"] = "Velocidade da animação em modos respirar/arco-íris/onda.", ["colorWhite"] = "Branco", ["colorRed"] = "Vermelho", ["colorGreen"] = "Verde", ["colorBlue"] = "Azul", ["colorPurple"] = "Roxo", ["colorCyan"] = "Ciano", ["colorWarm"] = "Branco quente", ["tabGeneral"] = "Geral", ["tabEffects"] = "Efeitos", ["tabCapture"] = "Captura", ["tabColor"] = "Cores", ["fpsHelp"] = "Taxa de atualização alvo. 15–120 FPS.", ["scaleHelp"] = "Altura da tela usada para amostrar bordas. 35–100%.", ["offsetHelp"] = "Move a área capturada para baixo. Útil para ignorar abas/cabeçalho.", ["hMarginHelp"] = "Afasta a amostragem das bordas esquerda/direita. 0–25%.", ["brightnessHelp"] = "Intensidade final dos LEDs. 100 é neutro.", ["saturationHelp"] = "Força das cores. 100 é neutro.", ["gammaHelp"] = "Curva de luminosidade. 100 é neutro.", ["thresholdHelp"] = "Mudança mínima antes de enviar novo pacote.", ["blackFloorHelp"] = "Abaixo desse brilho vira preto.", ["smoothingHelp"] = "Mais alto = menos flicker e mais atraso." },
-        ["es"] = new() { ["subtitle"] = "Control fino de luz ambiental — ligero, oscuro y directo.", ["developerCredit"] = "Desarrollado por Tanoooki", ["language"] = "Idioma", ["languageHelp"] = "Elige el idioma de la interfaz. Si Windows no es compatible, se usa inglés.", ["profile"] = "Perfil", ["profileHelp"] = "Ajustes rápidos: Económico reduce actividad; Fluido/Máximo aumentan respuesta.", ["invertStrip"] = "Invertir tira", ["invertHelp"] = "Invierte el orden físico de los LEDs si los colores aparecen espejados o la tira empieza en el lado opuesto.", ["reverseLedOrder"] = "Invertir orden de LEDs", ["scale"] = "Escala vertical de captura (%)", ["offset"] = "Ignorar encabezado/superior (%)", ["hMargin"] = "Margen horizontal (%)", ["brightness"] = "Brillo (%)", ["saturation"] = "Saturación (%)", ["gamma"] = "Gamma (100 = neutro)", ["threshold"] = "Umbral de cambio (%)", ["blackFloor"] = "Piso negro (%)", ["smoothing"] = "Suavizado (%)", ["saveRestart"] = "Guardar y reiniciar sync", ["saved"] = "Configuración guardada y sincronización reiniciada.", ["savedShort"] = "Guardado", ["custom"] = "Personalizado", ["economy"] = "Económico", ["standard"] = "Estándar", ["fluid"] = "Fluido", ["maximum"] = "Máximo", ["mode"] = "Modo de iluminação", ["modeHelp"] = "Escolha sincronização de tela ou efeitos embutidos parecidos com os presets do original.", ["modeScreen"] = "Sincronizar tela", ["modeSolid"] = "Cor fixa", ["modeBreathing"] = "Respirar", ["modeRainbow"] = "Arco-íris", ["modeColorCycle"] = "Ciclo de cores", ["modeWave"] = "Onda", ["effectColor"] = "Cor do efeito", ["effectColorHelp"] = "Cor base usada por cor fixa, respirar e onda.", ["effectSpeed"] = "Velocidade do efeito (%)", ["effectSpeedHelp"] = "Velocidade da animação em modos respirar/arco-íris/onda.", ["colorWhite"] = "Branco", ["colorRed"] = "Vermelho", ["colorGreen"] = "Verde", ["colorBlue"] = "Azul", ["colorPurple"] = "Roxo", ["colorCyan"] = "Ciano", ["colorWarm"] = "Branco quente", ["tabGeneral"] = "General", ["tabEffects"] = "Efectos", ["tabCapture"] = "Captura", ["tabColor"] = "Colores", ["fpsHelp"] = "Frecuencia objetivo. 15–120 FPS.", ["scaleHelp"] = "Altura de pantalla usada para muestrear bordes. 35–100%.", ["offsetHelp"] = "Mueve el área capturada hacia abajo.", ["hMarginHelp"] = "Mueve el muestreo hacia dentro desde los bordes. 0–25%.", ["brightnessHelp"] = "Intensidad final de los LEDs. 100 es neutro.", ["saturationHelp"] = "Fuerza del color. 100 es neutro.", ["gammaHelp"] = "Curva de brillo. 100 es neutro.", ["thresholdHelp"] = "Cambio mínimo antes de enviar paquete.", ["blackFloorHelp"] = "Por debajo de este brillo se vuelve negro.", ["smoothingHelp"] = "Más alto = menos parpadeo y más retraso." },
-        ["zh-CN"] = new() { ["subtitle"] = "精细环境光控制 — 轻量、深色、直接。", ["developerCredit"] = "由 Tanoooki 开发", ["language"] = "语言", ["languageHelp"] = "选择界面语言。不支持的 Windows 语言默认使用英语。", ["profile"] = "配置", ["profileHelp"] = "快速预设：节能降低活动；流畅/最大提高响应。", ["invertStrip"] = "反转灯带", ["invertHelp"] = "如果颜色左右镜像，或灯带从相反一侧开始，请反转 LED 物理顺序。", ["reverseLedOrder"] = "反转 LED 顺序", ["scale"] = "垂直采集比例 (%)", ["offset"] = "忽略顶部/标题栏 (%)", ["hMargin"] = "水平边距 (%)", ["brightness"] = "亮度 (%)", ["saturation"] = "饱和度 (%)", ["gamma"] = "伽马 (100 = 中性)", ["threshold"] = "变化阈值 (%)", ["blackFloor"] = "黑色阈值 (%)", ["smoothing"] = "平滑 (%)", ["saveRestart"] = "保存并重启同步", ["saved"] = "设置已保存，同步已重启。", ["savedShort"] = "已保存", ["custom"] = "自定义", ["economy"] = "节能", ["standard"] = "标准", ["fluid"] = "流畅", ["maximum"] = "最大", ["mode"] = "灯光模式", ["modeHelp"] = "选择屏幕同步或内置效果。", ["modeScreen"] = "屏幕同步", ["modeSolid"] = "固定颜色", ["modeBreathing"] = "呼吸", ["modeRainbow"] = "彩虹", ["modeColorCycle"] = "颜色循环", ["modeWave"] = "波浪", ["effectColor"] = "效果颜色", ["effectColorHelp"] = "固定、呼吸和波浪效果的基础颜色。", ["effectSpeed"] = "效果速度 (%)", ["effectSpeedHelp"] = "动画速度。", ["colorWhite"] = "白色", ["colorRed"] = "红色", ["colorGreen"] = "绿色", ["colorBlue"] = "蓝色", ["colorPurple"] = "紫色", ["colorCyan"] = "青色", ["colorWarm"] = "暖白", ["tabGeneral"] = "常规", ["tabEffects"] = "效果", ["tabCapture"] = "采集", ["tabColor"] = "颜色", ["fpsHelp"] = "目标刷新率。15–120 FPS。", ["scaleHelp"] = "用于边缘采样的屏幕高度。35–100%。", ["offsetHelp"] = "将采集区域向下移动。", ["hMarginHelp"] = "从左右边缘向内采样。0–25%。", ["brightnessHelp"] = "LED 最终亮度。100 为中性。", ["saturationHelp"] = "颜色强度。100 为中性。", ["gammaHelp"] = "亮度曲线。100 为中性。", ["thresholdHelp"] = "发送数据包前的最小变化。", ["blackFloorHelp"] = "低于此亮度则变为黑色。", ["smoothingHelp"] = "越高闪烁越少，但延迟越大。" }
+        ["en"] = new() { ["subtitle"] = "A little light. A space that feels like you.", ["developerCredit"] = "Developed by Tanoooki", ["language"] = "Language", ["languageHelp"] = "Choose the UI language. Default is English when Windows language is not supported.", ["profile"] = "Profile", ["profileHelp"] = "Quick presets: Economy lowers activity; Fluid/Maximum increase response.", ["invertStrip"] = "Invert strip", ["invertHelp"] = "Invert physical LED order if colors look mirrored or your strip starts on the opposite side.", ["reverseLedOrder"] = "Invert LED order", ["scale"] = "Vertical capture scale (%)", ["offset"] = "Ignore top/header (%)", ["hMargin"] = "Horizontal margin (%)", ["brightness"] = "Brightness (%)", ["saturation"] = "Saturation (%)", ["gamma"] = "Gamma (100 = neutral)", ["threshold"] = "Change threshold (%)", ["blackFloor"] = "Black floor (%)", ["smoothing"] = "Smoothing (%)", ["saveRestart"] = "Save and restart sync", ["saved"] = "Settings saved and sync restarted.", ["savedShort"] = "Saved", ["custom"] = "Custom", ["economy"] = "Economy", ["standard"] = "Standard", ["fluid"] = "Fluid", ["maximum"] = "Maximum", ["mode"] = "Lighting mode", ["modeHelp"] = "Choose screen sync or built-in effects similar to vendor presets.", ["modeScreen"] = "Screen sync", ["modeSolid"] = "Fixed color", ["modeBreathing"] = "Breathing", ["modeRainbow"] = "Rainbow", ["modeColorCycle"] = "Color cycle", ["modeWave"] = "Wave", ["effectColor"] = "Effect color", ["effectColorHelp"] = "Base color used by fixed, breathing and wave effects.", ["effectSpeed"] = "Effect speed (%)", ["effectSpeedHelp"] = "Animation speed for breathing/rainbow/wave modes.", ["colorWhite"] = "White", ["colorRed"] = "Red", ["colorGreen"] = "Green", ["colorBlue"] = "Blue", ["colorPurple"] = "Purple", ["colorCyan"] = "Cyan", ["colorWarm"] = "Warm white", ["tabGeneral"] = "General", ["tabEffects"] = "Effects", ["tabCapture"] = "Capture", ["tabColor"] = "Colors", ["fpsHelp"] = "Target refresh rate. 15–120 FPS.", ["scaleHelp"] = "Screen height used for sampling edges. 35–100%.", ["offsetHelp"] = "Moves capture area down. Useful to ignore browser tabs/header.", ["hMarginHelp"] = "Moves sampling inward from left/right edges. 0–25%.", ["brightnessHelp"] = "Final LED intensity. 100 is neutral.", ["saturationHelp"] = "Color strength. 100 is neutral.", ["gammaHelp"] = "Brightness curve. 100 is neutral.", ["thresholdHelp"] = "Minimum change before sending a packet.", ["blackFloorHelp"] = "Brightness below this becomes black.", ["smoothingHelp"] = "Higher means less flicker and more delay." },
+        ["pt-BR"] = new() { ["subtitle"] = "Um pouco de luz. Um espaço com a sua cara.", ["developerCredit"] = "Desenvolvido por Tanoooki", ["language"] = "Idioma", ["languageHelp"] = "Escolha o idioma da interface. Se o Windows não for suportado, o padrão é inglês.", ["profile"] = "Perfil", ["profileHelp"] = "Presets rápidos: Econômico reduz atividade; Fluido/Máximo aumentam resposta.", ["invertStrip"] = "Inverter fita", ["invertHelp"] = "Inverte a ordem física dos LEDs se as cores aparecem espelhadas ou se a fita começa no lado oposto.", ["reverseLedOrder"] = "Inverter ordem dos LEDs", ["scale"] = "Escala vertical da captura (%)", ["offset"] = "Ignorar cabeçalho/topo (%)", ["hMargin"] = "Margem horizontal (%)", ["brightness"] = "Brilho (%)", ["saturation"] = "Saturação (%)", ["gamma"] = "Gamma (100 = neutro)", ["threshold"] = "Threshold de mudança (%)", ["blackFloor"] = "Piso preto (%)", ["smoothing"] = "Suavização (%)", ["saveRestart"] = "Salvar e reiniciar sync", ["saved"] = "Configurações salvas e sincronização reiniciada.", ["savedShort"] = "Salvo", ["custom"] = "Personalizado", ["economy"] = "Econômico", ["standard"] = "Padrão", ["fluid"] = "Fluido", ["maximum"] = "Máximo", ["mode"] = "Modo de iluminação", ["modeHelp"] = "Escolha sincronização de tela ou efeitos embutidos parecidos com os presets do original.", ["modeScreen"] = "Sincronizar tela", ["modeSolid"] = "Cor fixa", ["modeBreathing"] = "Respirar", ["modeRainbow"] = "Arco-íris", ["modeColorCycle"] = "Ciclo de cores", ["modeWave"] = "Onda", ["effectColor"] = "Cor do efeito", ["effectColorHelp"] = "Cor base usada por cor fixa, respirar e onda.", ["effectSpeed"] = "Velocidade do efeito (%)", ["effectSpeedHelp"] = "Velocidade da animação em modos respirar/arco-íris/onda.", ["colorWhite"] = "Branco", ["colorRed"] = "Vermelho", ["colorGreen"] = "Verde", ["colorBlue"] = "Azul", ["colorPurple"] = "Roxo", ["colorCyan"] = "Ciano", ["colorWarm"] = "Branco quente", ["tabGeneral"] = "Geral", ["tabEffects"] = "Efeitos", ["tabCapture"] = "Captura", ["tabColor"] = "Cores", ["fpsHelp"] = "Taxa de atualização alvo. 15–120 FPS.", ["scaleHelp"] = "Altura da tela usada para amostrar bordas. 35–100%.", ["offsetHelp"] = "Move a área capturada para baixo. Útil para ignorar abas/cabeçalho.", ["hMarginHelp"] = "Afasta a amostragem das bordas esquerda/direita. 0–25%.", ["brightnessHelp"] = "Intensidade final dos LEDs. 100 é neutro.", ["saturationHelp"] = "Força das cores. 100 é neutro.", ["gammaHelp"] = "Curva de luminosidade. 100 é neutro.", ["thresholdHelp"] = "Mudança mínima antes de enviar novo pacote.", ["blackFloorHelp"] = "Abaixo desse brilho vira preto.", ["smoothingHelp"] = "Mais alto = menos flicker e mais atraso." },
+        ["es"] = new() { ["subtitle"] = "Un poco de luz. Un espacio a tu manera.", ["developerCredit"] = "Desarrollado por Tanoooki", ["language"] = "Idioma", ["languageHelp"] = "Elige el idioma de la interfaz. Si Windows no es compatible, se usa inglés.", ["profile"] = "Perfil", ["profileHelp"] = "Ajustes rápidos: Económico reduce actividad; Fluido/Máximo aumentan respuesta.", ["invertStrip"] = "Invertir tira", ["invertHelp"] = "Invierte el orden físico de los LEDs si los colores aparecen espejados o la tira empieza en el lado opuesto.", ["reverseLedOrder"] = "Invertir orden de LEDs", ["scale"] = "Escala vertical de captura (%)", ["offset"] = "Ignorar encabezado/superior (%)", ["hMargin"] = "Margen horizontal (%)", ["brightness"] = "Brillo (%)", ["saturation"] = "Saturación (%)", ["gamma"] = "Gamma (100 = neutro)", ["threshold"] = "Umbral de cambio (%)", ["blackFloor"] = "Piso negro (%)", ["smoothing"] = "Suavizado (%)", ["saveRestart"] = "Guardar y reiniciar sync", ["saved"] = "Configuración guardada y sincronización reiniciada.", ["savedShort"] = "Guardado", ["custom"] = "Personalizado", ["economy"] = "Económico", ["standard"] = "Estándar", ["fluid"] = "Fluido", ["maximum"] = "Máximo", ["mode"] = "Modo de iluminação", ["modeHelp"] = "Escolha sincronização de tela ou efeitos embutidos parecidos com os presets do original.", ["modeScreen"] = "Sincronizar tela", ["modeSolid"] = "Cor fixa", ["modeBreathing"] = "Respirar", ["modeRainbow"] = "Arco-íris", ["modeColorCycle"] = "Ciclo de cores", ["modeWave"] = "Onda", ["effectColor"] = "Cor do efeito", ["effectColorHelp"] = "Cor base usada por cor fixa, respirar e onda.", ["effectSpeed"] = "Velocidade do efeito (%)", ["effectSpeedHelp"] = "Velocidade da animação em modos respirar/arco-íris/onda.", ["colorWhite"] = "Branco", ["colorRed"] = "Vermelho", ["colorGreen"] = "Verde", ["colorBlue"] = "Azul", ["colorPurple"] = "Roxo", ["colorCyan"] = "Ciano", ["colorWarm"] = "Branco quente", ["tabGeneral"] = "General", ["tabEffects"] = "Efectos", ["tabCapture"] = "Captura", ["tabColor"] = "Colores", ["fpsHelp"] = "Frecuencia objetivo. 15–120 FPS.", ["scaleHelp"] = "Altura de pantalla usada para muestrear bordes. 35–100%.", ["offsetHelp"] = "Mueve el área capturada hacia abajo.", ["hMarginHelp"] = "Mueve el muestreo hacia dentro desde los bordes. 0–25%.", ["brightnessHelp"] = "Intensidad final de los LEDs. 100 es neutro.", ["saturationHelp"] = "Fuerza del color. 100 es neutro.", ["gammaHelp"] = "Curva de brillo. 100 es neutro.", ["thresholdHelp"] = "Cambio mínimo antes de enviar paquete.", ["blackFloorHelp"] = "Por debajo de este brillo se vuelve negro.", ["smoothingHelp"] = "Más alto = menos parpadeo y más retraso." },
+        ["zh-CN"] = new() { ["subtitle"] = "一点灯光，让空间更有你的风格。", ["developerCredit"] = "由 Tanoooki 开发", ["language"] = "语言", ["languageHelp"] = "选择界面语言。不支持的 Windows 语言默认使用英语。", ["profile"] = "配置", ["profileHelp"] = "快速预设：节能降低活动；流畅/最大提高响应。", ["invertStrip"] = "反转灯带", ["invertHelp"] = "如果颜色左右镜像，或灯带从相反一侧开始，请反转 LED 物理顺序。", ["reverseLedOrder"] = "反转 LED 顺序", ["scale"] = "垂直采集比例 (%)", ["offset"] = "忽略顶部/标题栏 (%)", ["hMargin"] = "水平边距 (%)", ["brightness"] = "亮度 (%)", ["saturation"] = "饱和度 (%)", ["gamma"] = "伽马 (100 = 中性)", ["threshold"] = "变化阈值 (%)", ["blackFloor"] = "黑色阈值 (%)", ["smoothing"] = "平滑 (%)", ["saveRestart"] = "保存并重启同步", ["saved"] = "设置已保存，同步已重启。", ["savedShort"] = "已保存", ["custom"] = "自定义", ["economy"] = "节能", ["standard"] = "标准", ["fluid"] = "流畅", ["maximum"] = "最大", ["mode"] = "灯光模式", ["modeHelp"] = "选择屏幕同步或内置效果。", ["modeScreen"] = "屏幕同步", ["modeSolid"] = "固定颜色", ["modeBreathing"] = "呼吸", ["modeRainbow"] = "彩虹", ["modeColorCycle"] = "颜色循环", ["modeWave"] = "波浪", ["effectColor"] = "效果颜色", ["effectColorHelp"] = "固定、呼吸和波浪效果的基础颜色。", ["effectSpeed"] = "效果速度 (%)", ["effectSpeedHelp"] = "动画速度。", ["colorWhite"] = "白色", ["colorRed"] = "红色", ["colorGreen"] = "绿色", ["colorBlue"] = "蓝色", ["colorPurple"] = "紫色", ["colorCyan"] = "青色", ["colorWarm"] = "暖白", ["tabGeneral"] = "常规", ["tabEffects"] = "效果", ["tabCapture"] = "采集", ["tabColor"] = "颜色", ["fpsHelp"] = "目标刷新率。15–120 FPS。", ["scaleHelp"] = "用于边缘采样的屏幕高度。35–100%。", ["offsetHelp"] = "将采集区域向下移动。", ["hMarginHelp"] = "从左右边缘向内采样。0–25%。", ["brightnessHelp"] = "LED 最终亮度。100 为中性。", ["saturationHelp"] = "颜色强度。100 为中性。", ["gammaHelp"] = "亮度曲线。100 为中性。", ["thresholdHelp"] = "发送数据包前的最小变化。", ["blackFloorHelp"] = "低于此亮度则变为黑色。", ["smoothingHelp"] = "越高闪烁越少，但延迟越大。" }
     };
 
     private void ApplyProfile()

@@ -11,4 +11,4 @@ assert(tray.includes('https://github.com/Tanoooki'), 'tray developer credit shou
 assert(tray.includes('LinkLabel'), 'developer credit should be clickable');
 assert(tray.includes('developerCredit'), 'developer credit should be localized');
 assert(readme.includes('Tanoooki') && readme.includes('https://github.com/Tanoooki'), 'README should credit/link Tanoooki');
-assert(pkg.scripts.test.includes('developer-credit.test.js'), 'canonical npm test should run developer credit test');
+assert.strictEqual(pkg.scripts.test, 'node scripts/run-tests.js', 'canonical npm test must discover every test file (verified by test-runner.test.js)');

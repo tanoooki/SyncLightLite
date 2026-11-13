@@ -10,4 +10,4 @@ for (const key of ['tabGeneral', 'tabEffects', 'tabCapture', 'tabColor']) {
   assert(tray.includes(key), `settings UI should include ${key} tab translation`);
 }
 assert(tray.includes('BuildTabPage'), 'settings UI should have reusable tab/page builder');
-assert(!tray.includes('AutoScroll = true'), 'settings UI should avoid relying on a single long scrolling panel');
+assert(/new TabPage\(title\).*AutoScroll = true/.test(tray), 'each tab should scroll when space is limited, leaving the save footer fixed');

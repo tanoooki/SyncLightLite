@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 - 2026-11-13
+
+- Refreshes settings with a warm, pixel-inspired interface and readable native controls.
+- Adds an immediate capture preview matching the actual LED sampling regions, including LED order and effective capture height.
+- Adds temporary, click-through desktop guides on the primary monitor, with capture exclusion and automatic cleanup.
+- Adds executable JavaScript/C# geometry parity and four-language WinForms regression tests.
+- Preserves existing settings during installation, including gamma and color tuning.
+
 ## 1.0.3 - 2026-07-28
 
 - Fixes shutdown/logoff crashes when Windows removes the Robobloq HID device before SyncLightLite finishes stopping.

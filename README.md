@@ -20,7 +20,7 @@
 > [!IMPORTANT]
 > Close the original SyncLight application before using SyncLightLite. Both apps try to open the same USB HID interface, and running them together is the most likely cause of “it does not work”.
 
-SyncLightLite replaces the heavier vendor desktop app with a small Node.js live engine plus a native Windows tray/settings app. The current 1.0.3 release was built and verified against a Robobloq/SyncLight HID light strip with 71 LEDs.
+SyncLightLite replaces the heavier vendor desktop app with a small Node.js live engine plus a native Windows tray/settings app. The current 1.1.0 release was built and verified against a Robobloq/SyncLight HID light strip with 71 LEDs.
 
 ## Download
 
@@ -28,9 +28,9 @@ SyncLightLite replaces the heavier vendor desktop app with a small Node.js live 
 
 https://github.com/Tanoooki/SyncLightLite/releases/latest
 
-For 1.0.3, download:
+For 1.1.0, download:
 
-`SyncLightLite-1.0.3-windows-x64.zip`
+`SyncLightLite-1.1.0-windows-x64.zip`
 
 Then extract it and run `SyncLightLiteSetup.exe`.
 
@@ -44,7 +44,7 @@ This project started as a very specific fix for one PC and one light strip. It b
 
 - Real-time screen-edge color sync for a 71-LED monitor backlight strip.
 - Native Windows tray app with single-instance behavior.
-- Dark/noir settings UI inspired by VS Code.
+- Warm, pixel-inspired native settings UI with readable text and capture-region guides.
 - Start Menu shortcuts and optional autostart with Windows.
 - Safe tray controls: start sync, stop and turn off LEDs, turn off LEDs now, open logs.
 - Practical tuning controls:
@@ -100,7 +100,7 @@ If you test another model, please open an issue with:
 
 ## Install from release
 
-1. Download `SyncLightLite-1.0.3-windows-x64.zip` from the GitHub release.
+1. Download `SyncLightLite-1.1.0-windows-x64.zip` from the GitHub release.
 2. Extract the zip.
 3. Run `SyncLightLiteSetup.exe`.
 4. Open SyncLightLite from the Start Menu, or let it start automatically after login.
@@ -124,8 +124,12 @@ The settings UI uses compact tabs instead of one long scrolling form:
 
 - General: language, profile, LED order inversion and FPS.
 - Effects: screen sync, fixed color, breathing, rainbow, color cycle and wave modes.
-- Capture: vertical scale, top/header offset and horizontal margin.
+- Capture: vertical scale, top/header offset and horizontal margin, with an immediate schematic preview and optional desktop guides.
 - Colors: brightness, saturation, gamma, threshold, black floor and smoothing.
+
+The Capture preview draws the actual sampling rectangles on the primary monitor's 10× downsampled frame (71-LED layout). Teal marks the sides, amber the top, and the square marks LED 1. There is no bottom LED strip. Effective height is limited to `min(vertical scale, 100% − top offset)`; sample thickness stays fixed. Changing the numbers updates the preview immediately, but **Save and restart sync** is still required to apply changes to the lights.
+
+**Show desktop guides** temporarily draws the same regions over the primary monitor. The overlay is click-through and does not take focus. Uncheck it to hide immediately; it also hides after 30 seconds, on tab changes, display changes, minimize, hide, or close. Windows 10 2004+ capture exclusion must succeed before the overlay is shown; otherwise it stays hidden with an explanatory message. The schematic preview remains available. Capture exclusion depends on the capture backend honoring Windows display affinity; it is not a security boundary.
 
 It includes a flag-based language selector: 🇺🇸 English, 🇧🇷 Português, 🇪🇸 Español and 🇨🇳 中文. Changing the language updates the visible settings UI immediately; saving also refreshes the tray menu language. Saving settings no longer opens a blocking popup; the save button briefly pulses green and changes to a localized “Saved” label.
 

@@ -15,4 +15,4 @@ for (const label of ['Brilho', 'Saturação', 'Gamma', 'Threshold', 'Margem hori
   assert(tray.includes(label), `tray UI should include ${label}`);
 }
 assert(tray.includes('FromIconImage'), 'tray should use bundled icon');
-assert(tray.includes('Color.FromArgb(30, 30, 30)'), 'tray settings should use dark/noir design');
+assert(tray.includes('Color.FromArgb(247, 239, 219)'), 'tray settings should use warm cream pixel-inspired design');

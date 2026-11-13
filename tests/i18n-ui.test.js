@@ -19,4 +19,4 @@ assert(tray.includes('en') && tray.includes('pt-BR') && tray.includes('es') && t
 for (const token of ['Settings', 'Configurações', 'Configuración', '设置']) {
   assert(tray.includes(token), `tray translations should include ${token}`);
 }
-assert(pkg.scripts.test.includes('i18n-ui.test.js'), 'canonical npm test should run i18n UI test');
+assert.strictEqual(pkg.scripts.test, 'node scripts/run-tests.js', 'canonical npm test must discover every test file (verified by test-runner.test.js)');

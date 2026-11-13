@@ -17,4 +17,4 @@ assert(tray.includes('Color.FromArgb(46, 160, 67)') || tray.includes('Success'),
 for (const token of ['savedShort', 'Salvo', 'Saved', 'Guardado', '已保存']) {
   assert(tray.includes(token), `save feedback should include ${token}`);
 }
-assert(pkg.scripts.test.includes('save-feedback.test.js'), 'canonical npm test should run save feedback test');
+assert.strictEqual(pkg.scripts.test, 'node scripts/run-tests.js', 'canonical npm test must discover every test file (verified by test-runner.test.js)');

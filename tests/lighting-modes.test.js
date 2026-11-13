@@ -20,4 +20,4 @@ assert(tray.includes('_effectSpeed'), 'settings UI should include effect speed c
 assert(live.includes('runEffect'), 'live should dispatch non-screen effects');
 assert(live.includes('hsvToRgb'), 'live should generate rainbow/color cycle colors');
 assert(live.includes('solidPacket') && live.includes('colorsPacket'), 'effects should use solid and per-LED packets');
-assert(pkg.scripts.test.includes('lighting-modes.test.js'), 'canonical npm test should run lighting modes test');
+assert.strictEqual(pkg.scripts.test, 'node scripts/run-tests.js', 'canonical npm test must discover every test file (verified by test-runner.test.js)');
