@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Management;
@@ -13,13 +14,18 @@ internal static class Program
     private static readonly string AppRoot = FindAppRoot();
     private static readonly string LogDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SyncLightLite");
     private static readonly string LogPath = Path.Combine(LogDir, "synclightlite.log");
+    private static readonly object LogLock = new();
     private static readonly string ConfigPath = Path.Combine(AppRoot, "config.json");
     private static Process? _live;
+    private static PowerEngineStop? _liveStop;
     private static NotifyIcon? _tray;
     private static SettingsForm? _settings;
     private static Mutex? _mutex;
     private static EventWaitHandle? _showEvent;
     private static bool _shuttingDown;
+    private static PowerLifecycle? _power;
+    private static PowerWindow? _powerWindow;
+    private static System.Windows.Forms.Timer? _resumeTimer;
 
     [STAThread]
     private static void Main(string[] args)
@@ -33,15 +39,31 @@ internal static class Program
 
         Directory.CreateDirectory(LogDir);
         ApplicationConfiguration.Initialize();
+        // Establish the UI dispatcher even when no SettingsForm is ever opened.
+        SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
         _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
-        var ui = WindowsFormsSynchronizationContext.Current;
+        var ui = SynchronizationContext.Current!;
         new Thread(() =>
         {
-            while (_showEvent.WaitOne()) ui?.Post(_ => OpenSettingsWindow(), null);
+            try
+            {
+                while (_showEvent.WaitOne()) ui.Post(_ => { if (!_shuttingDown) OpenSettingsWindow(); }, null);
+            }
+            catch (ObjectDisposedException) { }
+            catch (InvalidAsynchronousStateException) { }
         }) { IsBackground = true, Name = "SyncLightLite settings event" }.Start();
 
-        SystemEvents.SessionEnding += (_, _) => ShutdownNow();
+        SessionEndingEventHandler sessionEnding = (_, _) => ui.Send(_ => ShutdownNow(), null);
+        SystemEvents.SessionEnding += sessionEnding;
         Application.ApplicationExit += (_, _) => ShutdownNow();
+        _resumeTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+        _power = new PowerLifecycle(() => _live is { HasExited: false }, StartSyncLightLite,
+            (off, fallback, wait) => StopSyncLightLite(off, fallback, wait),
+            enabled => _resumeTimer.Enabled = enabled, AppendLog);
+        _resumeTimer.Tick += (_, _) => _power.Tick();
+        _powerWindow = new PowerWindow(_power.DisplayChanged, _power.Suspend, _power.Resume, ShutdownNow, AppendLog,
+            _power.RegistrationFailed);
+        _powerWindow.RegisterSession(_power.SessionLocked, _power.RegistrationFailed);
 
         _tray = new NotifyIcon
         {
@@ -53,9 +75,16 @@ internal static class Program
         _tray.DoubleClick += (_, _) => OpenSettingsWindow();
 
         EnsureConfig();
-        StartSyncLightLite();
+        _power.Enable();
         if (!args.Contains("--minimized")) OpenSettingsWindow();
-        Application.Run();
+        try { Application.Run(); }
+        finally
+        {
+            ShutdownNow();
+            SystemEvents.SessionEnding -= sessionEnding;
+            _powerWindow.Dispose();
+            _resumeTimer.Dispose();
+        }
     }
 
     private static string FindAppRoot()
@@ -75,11 +104,11 @@ internal static class Program
     {
         var menu = new ContextMenuStrip();
         menu.Items.Add(TMenu("settings"), null, (_, _) => OpenSettingsWindow());
-        menu.Items.Add(TMenu("startSync"), null, (_, _) => StartSyncLightLite());
-        menu.Items.Add(TMenu("stopOff"), null, (_, _) => StopSyncLightLite(turnOff: true));
-        menu.Items.Add(TMenu("offNow"), null, (_, _) => StopSyncLightLite(turnOff: true));
+        menu.Items.Add(TMenu("startSync"), null, (_, _) => _power?.Enable());
+        menu.Items.Add(TMenu("stopOff"), null, (_, _) => _power?.Disable());
+        menu.Items.Add(TMenu("offNow"), null, (_, _) => _power?.Disable());
         menu.Items.Add(TMenu("openLog"), null, (_, _) => Process.Start(new ProcessStartInfo(LogPath) { UseShellExecute = true }));
-        menu.Items.Add(TMenu("exit"), null, (_, _) => { StopSyncLightLite(turnOff: true); Application.Exit(); });
+        menu.Items.Add(TMenu("exit"), null, (_, _) => { _power?.Disable(); Application.Exit(); });
         return menu;
     }
 
@@ -125,8 +154,7 @@ internal static class Program
         {
             SaveConfig(cfg);
             ApplyLanguageToTray();
-            StopSyncLightLite(turnOff: false);
-            StartSyncLightLite();
+            _power?.Reload();
         }, lang =>
         {
             var cfg = LoadConfig();
@@ -140,8 +168,11 @@ internal static class Program
 
     private static void StartSyncLightLite()
     {
-        KillStaleLiveEngines(_live?.Id);
+        if (_shuttingDown || _power?.CanRun != true) return;
         if (_live is { HasExited: false }) return;
+        _live?.Dispose();
+        _live = null;
+        KillStaleLiveEngines(null);
         Directory.CreateDirectory(LogDir);
         var cfg = LoadConfig();
         var info = new ProcessStartInfo
@@ -157,7 +188,8 @@ internal static class Program
         };
         _live = Process.Start(info);
         if (_live == null) return;
-        _live.OutputDataReceived += (_, e) => AppendLog(e.Data);
+        var stopTracker = _liveStop = new PowerEngineStop();
+        _live.OutputDataReceived += (_, e) => { stopTracker.Observe(e.Data); AppendLog(e.Data); };
         _live.ErrorDataReceived += (_, e) => AppendLog(e.Data);
         _live.BeginOutputReadLine();
         _live.BeginErrorReadLine();
@@ -171,46 +203,25 @@ internal static class Program
         {
             if (_live is { HasExited: false })
             {
-                offSentByLiveEngine = RequestLiveEngineStop(_live, turnOff);
                 var gracefulWaitMs = waitMs ?? (turnOff ? 3500 : 1500);
-                if (!_live.WaitForExit(gracefulWaitMs))
-                {
-                    AppendLog($"[tray] live engine did not exit after {gracefulWaitMs}ms; killing process tree");
-                    _live.Kill(entireProcessTree: true);
-                    _live.WaitForExit(Math.Min(1000, gracefulWaitMs));
-                    offSentByLiveEngine = false;
-                }
+                offSentByLiveEngine = _liveStop != null && _liveStop.Stop(_live, turnOff, gracefulWaitMs, allowFallbackOff, AppendLog);
             }
-            KillStaleLiveEngines(null);
+            // WMI enumeration has no useful suspend-time bound. Only the owned
+            // live engine is stopped during suspend/session-end.
+            if (allowFallbackOff) KillStaleLiveEngines(null);
         }
         catch (Exception ex) { AppendLog("[tray] stop failed: " + ex.Message); }
         finally
         {
             _live?.Dispose();
             _live = null;
+            _liveStop = null;
             if (turnOff && !offSentByLiveEngine && allowFallbackOff) TurnOffLights();
-            else if (turnOff && !offSentByLiveEngine) AppendLog("[tray] skipped fallback off process during Windows shutdown/logoff");
+            else if (turnOff && !offSentByLiveEngine) AppendLog("[tray] skipped fallback off process during Windows suspend/shutdown/logoff");
             if (_tray != null) _tray.Text = TMenu("trayOff");
         }
     }
 
-    private static bool RequestLiveEngineStop(Process process, bool turnOff)
-    {
-        try
-        {
-            if (process.HasExited) return false;
-            process.StandardInput.WriteLine(turnOff ? "off" : "stop");
-            process.StandardInput.Flush();
-            process.StandardInput.Close();
-            AppendLog(turnOff ? "[tray] requested live engine graceful off" : "[tray] requested live engine graceful stop");
-            return turnOff;
-        }
-        catch (Exception ex)
-        {
-            AppendLog("[tray] graceful live engine stop failed: " + ex.Message);
-            return false;
-        }
-    }
 
     private static void KillStaleLiveEngines(int? keepPid)
     {
@@ -238,7 +249,8 @@ internal static class Program
         if (_shuttingDown) return;
         _shuttingDown = true;
         AppendLog("[tray] Windows shutdown/logoff detected; stopping live engine without launching new node processes");
-        StopSyncLightLite(turnOff: true, allowFallbackOff: false, waitMs: 1800);
+        if (_power != null) _power?.Shutdown();
+        else StopSyncLightLite(turnOff: true, allowFallbackOff: false, waitMs: 1800);
         _tray?.Dispose();
         _mutex?.Dispose();
         _showEvent?.Dispose();
@@ -249,7 +261,7 @@ internal static class Program
     {
         try
         {
-            var p = Process.Start(new ProcessStartInfo
+            using var p = Process.Start(new ProcessStartInfo
             {
                 FileName = "node",
                 Arguments = args,
@@ -259,7 +271,17 @@ internal static class Program
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             });
-            p?.WaitForExit(waitMs);
+            if (p == null) return;
+            p.OutputDataReceived += (_, e) => AppendLog(e.Data);
+            p.ErrorDataReceived += (_, e) => AppendLog(e.Data);
+            p.BeginOutputReadLine();
+            p.BeginErrorReadLine();
+            if (!p.WaitForExit(waitMs))
+            {
+                AppendLog("[tray] fallback off timed out; killing process tree");
+                p.Kill(entireProcessTree: true);
+                p.WaitForExit(1000);
+            }
         }
         catch (Exception ex) { AppendLog("[tray] " + ex.Message); }
     }
@@ -321,7 +343,7 @@ internal static class Program
     private static void AppendLog(string? line)
     {
         if (string.IsNullOrEmpty(line)) return;
-        try { File.AppendAllText(LogPath, line + Environment.NewLine); } catch { }
+        try { lock (LogLock) File.AppendAllText(LogPath, PowerDiagnostics.Format(line) + Environment.NewLine); } catch { }
     }
 }
 

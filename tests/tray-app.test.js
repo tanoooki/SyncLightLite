@@ -14,9 +14,9 @@ assert(src.includes('KillStaleLiveEngines'), 'tray app should stop stale node li
 assert(src.includes('CommandLine') && src.includes('src\\\\live.js live'), 'stale engine cleanup should target only SyncLightLite live node processes');
 assert(src.includes('StopSyncLightLite'), 'tray app should stop live engine');
 assert(src.includes('RedirectStandardInput = true'), 'tray app should keep stdin open for graceful live-engine shutdown');
-assert(src.includes('RequestLiveEngineStop'), 'tray app should ask node to turn LEDs off before killing it');
+assert(src.includes('_liveStop.Stop(_live, turnOff'), 'tray app should use the tested ACK-aware stop before killing node');
 assert(src.includes('TurnOffLights'), 'tray app should turn lights off');
-assert(src.includes('TMenu("offNow"), null, (_, _) => StopSyncLightLite(turnOff: true)'), 'turn-off-now menu should stop the live engine before sending off to avoid HID contention');
+assert(src.includes('TMenu("offNow"), null, (_, _) => _power?.Disable()'), 'turn-off-now must cancel user intent and use the tested stop/off coordinator to avoid HID contention');
 assert(src.includes('SystemEvents.SessionEnding'), 'tray app should handle Windows shutdown/logoff');
 assert(src.includes('allowFallbackOff: false'), 'shutdown/logoff path must not launch a fresh node off process while Windows is ending the session');
 assert(src.includes('Application.ExitThread'), 'shutdown/logoff path should leave the WinForms message loop after cleanup');

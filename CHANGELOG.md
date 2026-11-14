@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 - 2026-11-14
+
+- Turns LEDs off and pauses capture on Windows display-off, session lock and suspend notifications; respects manual stop on resume.
+- Fixes off acknowledgements reporting success after failed HID writes and fences late capture callbacks after shutdown.
+- Prioritizes the off write before native capture teardown and bounds automatic stop waits without spawning fallback processes.
+- Adds timestamped power/session diagnostics and bounded resume retries.
+- Physical LED-off during S3 suspend was confirmed on the supported device. Display-timeout-only behavior still needs real-world confirmation; USB removal can prevent an off write.
+
 ## 1.1.0 - 2026-11-13
 
 - Refreshes settings with a warm, pixel-inspired interface and readable native controls.

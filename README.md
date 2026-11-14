@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Tanoooki/SyncLightLite/releases/latest"><img alt="Latest release: v1.1.0" src="https://img.shields.io/github/v/release/Tanoooki/SyncLightLite?style=for-the-badge&amp;cacheSeconds=300&amp;v=1.1.0"></a>
+  <a href="https://github.com/Tanoooki/SyncLightLite/releases/latest"><img alt="Latest release: v1.1.1" src="https://img.shields.io/github/v/release/Tanoooki/SyncLightLite?style=for-the-badge&amp;cacheSeconds=300&amp;v=1.1.1"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge"></a>
   <img alt="Windows" src="https://img.shields.io/badge/windows-10%2F11-0078D4?style=for-the-badge&logo=windows">
   <img alt="Hardware verified" src="https://img.shields.io/badge/hardware-1A86%3AFE07%20verified-22c55e?style=for-the-badge">
@@ -20,7 +20,7 @@
 > [!IMPORTANT]
 > Close the original SyncLight application before using SyncLightLite. Both apps try to open the same USB HID interface, and running them together is the most likely cause of “it does not work”.
 
-SyncLightLite replaces the heavier vendor desktop app with a small Node.js live engine plus a native Windows tray/settings app. The current 1.1.0 release was built and verified against a Robobloq/SyncLight HID light strip with 71 LEDs.
+SyncLightLite replaces the heavier vendor desktop app with a small Node.js live engine plus a native Windows tray/settings app. The current 1.1.1 release was built and verified against a Robobloq/SyncLight HID light strip with 71 LEDs.
 
 ## Download
 
@@ -28,9 +28,9 @@ SyncLightLite replaces the heavier vendor desktop app with a small Node.js live 
 
 https://github.com/Tanoooki/SyncLightLite/releases/latest
 
-For 1.1.0, download:
+For 1.1.1, download:
 
-`SyncLightLite-1.1.0-windows-x64.zip`
+`SyncLightLite-1.1.1-windows-x64.zip`
 
 Then extract it and run `SyncLightLiteSetup.exe`.
 
@@ -47,6 +47,10 @@ This project started as a very specific fix for one PC and one light strip. It b
 - Warm, pixel-inspired native settings UI with readable text and capture-region guides.
 - Start Menu shortcuts and optional autostart with Windows.
 - Safe tray controls: start sync, stop and turn off LEDs, turn off LEDs now, open logs.
+- Automatically pauses and turns LEDs off when Windows turns the session display off (including display timeout), or suspends. Screen-on resumes only if sync was enabled; a manual stop stays stopped. Dimmed displays continue syncing.
+- Saving settings while paused does not turn LEDs back on. Resume waits for a fresh display-on/dim notification and briefly retries USB startup; shutdown/logoff uses the existing engine's off command without launching another process.
+- Windows session lock is a separate pause gate: display-on and automatic/network resume cannot override it. Unlock still requires a known on/dim display and enabled sync. Mouse inactivity and an unlocked screensaver are not treated as display-off. No Windows power, screensaver or network-wake settings are changed.
+- Startup also waits for Windows to explicitly report the display on or dimmed; unknown/off status never starts the engine. Display/suspend registration or WTS registration/initial-lock-query failure keeps sync paused until the app is restarted. **Open log** shows the error and recovery policy; **Start sync** and saving settings cannot bypass this safety pause.
 - Practical tuning controls:
   - FPS: 15-120
   - capture scale and top/header offset
@@ -100,7 +104,7 @@ If you test another model, please open an issue with:
 
 ## Install from release
 
-1. Download `SyncLightLite-1.1.0-windows-x64.zip` from the GitHub release.
+1. Download `SyncLightLite-1.1.1-windows-x64.zip` from the GitHub release.
 2. Extract the zip.
 3. Run `SyncLightLiteSetup.exe`.
 4. Open SyncLightLite from the Start Menu, or let it start automatically after login.
@@ -277,6 +281,10 @@ calibration/                 visual calibration helper
 ```
 
 ## Limitations
+
+- LED-off on suspend is best effort: USB may already be unavailable when Windows delivers the notification. `SYNCLIGHT_STOP` reports `offRequested` separately from `offWritten`; the latter means the HID write returned successfully, **not** a device/visual acknowledgement. A missing/failed ACK is never reported as successful off.
+- Automatic display-off/lock uses a 1200ms owned-engine stop budget; suspend/session-end uses 1800ms. These paths do not enumerate processes or spawn fallback off commands, so a display-off preceding suspend cannot spend the manual 3500ms plus fallback budget. A blocking native capture stop is killed at the deadline, after attempting HID off first.
+- **Open log** includes timezone-qualified timestamps, raw `WM_POWERBROADCAST` event/GUID/value, WTS lock/unlock events, state/action/retry decisions and per-child off results. For an unexpected relight, preserve the log segment spanning screensaver, display timeout, suspend and resume plus Windows' wake-source event. A network wake does not itself establish display-on. Actual Windows transition ordering and physical LED behavior still require hardware reproduction; synthetic tests do not prove those outcomes.
 
 - 1.0 is Windows-only.
 - Hardware support is intentionally conservative: only `VID 1A86 / PID FE07 / interface 0` is enabled in code.

@@ -128,10 +128,11 @@ async function runLive(device, leds) {
     const stop = (turnLightsOff = false) => {
       if (stopped) return;
       stopped = true;
+      const offWritten = turnLightsOff && safeTurnOff(device, leds, 'live stop');
+      console.log('SYNCLIGHT_STOP ' + JSON.stringify({ offRequested: turnLightsOff, offWritten }));
       try { q.stopCaptureMultiScreens(); } catch (_) {}
-      if (turnLightsOff) safeTurnOff(device, leds, 'live stop');
       try { device.close(); } catch (_) {}
-      console.log(`live stopped; packets sent=${sent}; off=${turnLightsOff}`);
+      console.log(`live stopped; packets sent=${sent}; off=${offWritten}`);
       resolve();
     };
 
@@ -139,6 +140,8 @@ async function runLive(device, leds) {
       if (timer) clearTimeout(timer);
       console.log(`[live] capture/write stopped cleanly after error: ${err?.message || err}`);
       stop(false);
+      // stdin/native handles can keep an otherwise stopped engine alive.
+      setTimeout(() => process.exit(1), 50);
     };
 
     installStdinShutdownHandler(stop);
@@ -147,6 +150,7 @@ async function runLive(device, leds) {
 
     try {
       q.startCaptureMultiScreens((frames) => {
+        if (stopped) return; // Native callbacks may already be queued when capture stops.
         try {
           if (Date.now() - lastSent < intervalMs) return;
           const frame = frames[monitor.displayId];
@@ -195,9 +199,10 @@ async function runEffect(device, leds, config, mode) {
       if (stopped) return;
       stopped = true;
       if (timer) clearInterval(timer);
-      if (turnLightsOff) safeTurnOff(device, leds, 'effect stop');
+      const offWritten = turnLightsOff && safeTurnOff(device, leds, 'effect stop');
+      console.log('SYNCLIGHT_STOP ' + JSON.stringify({ offRequested: turnLightsOff, offWritten }));
       try { device.close(); } catch (_) {}
-      console.log(`effect stopped; mode=${mode}; packets sent=${sent}; off=${turnLightsOff}`);
+      console.log(`effect stopped; mode=${mode}; packets sent=${sent}; off=${offWritten}`);
       resolve();
     };
     installStdinShutdownHandler(stop);
@@ -213,6 +218,7 @@ async function runEffect(device, leds, config, mode) {
       } catch (err) {
         console.log(`[live] effect/write stopped cleanly after error: ${err?.message || err}`);
         stop(false);
+        setTimeout(() => process.exit(1), 50);
       }
     }, intervalMs);
   });
@@ -269,16 +275,22 @@ function installShutdownHandlers(stop) {
 function installStdinShutdownHandler(stop) {
   if (!process.stdin || process.stdin.isTTY) return;
   process.stdin.setEncoding('utf8');
+  let pending = '';
   process.stdin.on('data', chunk => {
-    const command = String(chunk).trim().toLowerCase();
-    if (['off', 'shutdown', 'stop-off'].includes(command)) {
-      stop(true);
-      setTimeout(() => process.exit(0), 50);
-      return;
-    }
-    if (['stop', 'exit', 'quit'].includes(command)) {
-      stop(false);
-      setTimeout(() => process.exit(0), 50);
+    pending += String(chunk);
+    let newline;
+    while ((newline = pending.indexOf('\n')) >= 0) {
+      const command = pending.slice(0, newline).trim().toLowerCase();
+      pending = pending.slice(newline + 1);
+      if (['off', 'shutdown', 'stop-off'].includes(command)) {
+        stop(true);
+        setTimeout(() => process.exit(0), 50);
+        return;
+      }
+      if (['stop', 'exit', 'quit'].includes(command)) {
+        stop(false);
+        setTimeout(() => process.exit(0), 50);
+      }
     }
   });
 }
@@ -286,8 +298,10 @@ function installStdinShutdownHandler(stop) {
 function safeTurnOff(device, leds, context) {
   try {
     turnOff(device, leds);
+    return true;
   } catch (err) {
     console.log(`[live] lights-off skipped during ${context}: ${err?.message || err}`);
+    return false;
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "synclightlite",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": false,
   "description": "Lightweight open-source HID ambient light/screen-sync controller for Robobloq SyncLight-style USB light strips",
   "main": "src/live.js",
